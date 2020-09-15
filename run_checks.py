@@ -70,10 +70,24 @@ def check_prometheus_disk_not_full():
     assert all((float(rec[use_percent].strip('%')) < 80 for rec in rows))
     return rows
 
+
+def check_wifi_country_code():
+    out = subprocess.check_output(['iw', 'reg', 'get']).decode('utf-8')
+    assert 'country US: DFS-FCC' in out, out
+    return [l.strip() for l in out.split('\n') if 'country' in l]
+
+
+def check_wifi_power_save():
+    out = subprocess.check_output(['iw', 'wlan0', 'get', 'power_save']).decode('utf-8')
+    assert 'Power save: off'in out
+    return out.strip()
+
     
 checks = [
     ('health check enabled file exists', check_enabled_file),
     ('wifi address', check_wifi_is_up),
+    ('wifi country code', check_wifi_country_code),
+    ('wifi power management', check_wifi_power_save),
     ('neurio device', check_neurio_device_reachable),
     ('neurio exporter', check_neurio_exporter_running),
     ('prometheus server', check_prometheus_metrics),
@@ -94,6 +108,7 @@ all_ok = True
 for name, check_fn in checks:
     result = None
     ok = False
+    print(f"\n==#==========+==+=+=++=+++++++++++-+-+--+----- --- -- -  -  -   -")
     print(f"Checking {name}...")
     try:
         result = check_fn()
@@ -102,10 +117,14 @@ for name, check_fn in checks:
         all_ok = False
         result = sys.exc_info()
         
-    print(f"  {'PASS' if ok else 'FAIL'}: {result if result is not None else '(no details)'}")
+    print(f"    {'PASS' if ok else 'FAIL'}: {result if result is not None else '(no details)'}")
 
 
 if all_ok:
+    print(f"\n==#==========+==+=+=++=+++++++++++-+-+--+----- --- -- -  -  -   -")
+    print("OVERALL: PASS")
     GPIO.output(17, 1)
 else:
+    print(f"\n==#==========+==+=+=++=+++++++++++-+-+--+----- --- -- -  -  -   -")
+    print("OVERALL: FAIL")
     GPIO.output(17, 0)
